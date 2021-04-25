@@ -36,12 +36,26 @@
               <span class="balance"> {{ activeBalance }} Ether </span>
             </div>
             <div class="tk-info">
-              <el-card>
+              <el-card v-loading="loading">
                 <h4>Get Token Information</h4>
                 <br />
-                <el-input type="text" placeholder="Enter ether address">
-                  <el-button slot="append" icon="el-icon-search"></el-button>
+                <el-input
+                  type="text"
+                  placeholder="Enter ether address"
+                  v-model="address"
+                >
+                  <el-button
+                    slot="append"
+                    icon="el-icon-search"
+                    @click.prevent="getTokenInfo"
+                  ></el-button>
                 </el-input>
+
+                <!-- token information -->
+                <br />
+                <div v-show="accready">
+                  <li>Balance: {{ contractBalance }}</li>
+                </div>
               </el-card>
             </div>
           </el-card>
@@ -53,7 +67,9 @@
     <el-dialog
       title="Tranfer Tokens"
       :visible.sync="showTransferForm"
+      :before-close="closeTransfer"
       width="20%"
+      v-loading="transferLoading"
     >
       <el-form
         ref="transferData"
@@ -70,7 +86,7 @@
 
         <el-form-item label="Number of Tokens">
           <el-input
-            v-model="transferData.token"
+            v-model.number="transferData.token"
             type="number"
             placeholder="100"
           ></el-input>
@@ -82,7 +98,6 @@
           type="warning"
           icon="el-icon-s-promotion"
           class="full-width"
-          :loading="btnLoading"
           @click.prevent="transferToken"
           >Tranfer Tokens</el-button
         >
@@ -107,17 +122,25 @@ const argsTotalSupply = {
   methodArgs: '',
 };
 
+const argsBalance = {
+  contractName: 'DappToken',
+  method: 'getAcc',
+  methodArgs: '',
+};
+
 export default {
   name: 'Home',
   data() {
     return {
-      name: '',
+      loading: false,
+      accready: false,
+      address: '',
       showTransferForm: false,
       transferData: {
         address: '',
         token: 0,
       },
-      btnLoading: false,
+      transferLoading: false,
     };
   },
   computed: {
@@ -137,18 +160,53 @@ export default {
         method: 'totalSupply',
       });
     },
+    contractBalance() {
+      return this.getContractData({
+        contract: argsBalance.contractName,
+        method: 'getAcc',
+      });
+    },
   },
   created() {
     this.$store.dispatch('drizzle/REGISTER_CONTRACT', argsName);
     this.$store.dispatch('drizzle/REGISTER_CONTRACT', argsTotalSupply);
+    this.$store.dispatch('drizzle/REGISTER_CONTRACT', argsBalance);
+  },
+  mounted() {
+    const contractEventHandler = ({ contractName, eventName, data }) => {
+      const display = `${eventName} of : ${data._numTokens} tokens to account( ${data._receiver})`;
+      this.$notify({
+        title: contractName,
+        message: display,
+        type: 'success',
+        duration: 0,
+      });
+      this.transferLoading = false;
+      this.showTransferForm = false;
+    };
+    this.$drizzleEvents.$on('drizzle/contractEvent', payload => {
+      contractEventHandler(payload);
+    });
   },
   methods: {
     transferToken() {
-      this.btnLoading = true;
+      this.transferLoading = true;
       this.drizzleInstance.contracts['DappToken'].methods['transfer'].cacheSend(
         this.transferData.address,
         this.transferData.token
       );
+    },
+    getTokenInfo() {
+      this.loading = true;
+      this.drizzleInstance.contracts['DappToken'].methods[
+        'setAccount'
+      ].cacheSend(this.address);
+      this.accready = true;
+      this.loading = false;
+    },
+    closeTransfer() {
+      this.transferLoading = false;
+      this.showTransferForm = false;
     },
   },
 };

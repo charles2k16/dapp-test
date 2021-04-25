@@ -7,6 +7,8 @@ contract DappToken {
   // total supply of tokens allocated
   uint256 public totalSupply = 1000000000000000000000000; // 1 million tokens
   uint8   public decimals = 18;
+  string accName = "Test token";
+  uint256 accToken = 0;
 
   // create our event that will will be emitted when there is a transfer()
   event Transfer(
@@ -56,5 +58,21 @@ contract DappToken {
     allowance[_from][msg.sender] -= _value;
     emit Transfer(_from, _to, _value);
     return true;
+  }
+
+  function setName(string memory _name) public {
+    accName = _name;
+  }
+
+  function getAccName() public view returns (string memory) {
+    return accName;
+  }
+
+  function setAccount(address _newAddress) public {
+    accToken = balanceOf[_newAddress];
+  }
+
+  function getAcc() public view returns (uint256) {
+    return accToken;
   }
 }
